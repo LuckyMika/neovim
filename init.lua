@@ -43,14 +43,15 @@ P.S. You can delete this when you're done too. It's your config now :)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
--- Set correct shell path & fix weird flag interpretation error
-vim.cmd("set shell=C:/w64devkit/bin/bash.exe")
-vim.cmd("set shellcmdflag=-c")
+-- Fix shell not working on windows.
+if vim.fn.has("win32") == 1 then
+	vim.cmd("set shell=C:/w64devkit/bin/bash.exe")
+	vim.cmd("set shellcmdflag=-c")
+end
 
 -- Install package manager
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
-
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system {
