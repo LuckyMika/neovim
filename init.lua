@@ -45,13 +45,17 @@ vim.g.maplocalleader = ' '
 
 -- Fix shell not working on windows.
 if vim.fn.has("win32") == 1 then
-	vim.cmd("set shell=C:/w64devkit/bin/bash.exe")
-	vim.cmd("set shellcmdflag=-c")
+  vim.cmd("set shell=C:/w64devkit/bin/bash.exe")
+  vim.cmd("set shellcmdflag=-c")
+  vim.cmd("set shellquote=\"")
+  vim.cmd("set shellxquote=")
 end
+
 
 -- Install package manager
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
+
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system {
@@ -63,13 +67,39 @@ if not vim.loop.fs_stat(lazypath) then
   }
 end
 vim.opt.rtp:prepend(lazypath)
-print("Finished: " .. lazypath)
 
 -- NOTE: Here is where you install your plugins.
 --  You can configure plugins using the `config` key.
 --
 --  You can also configure plugins after the setup call,
 --    as they will be available in your neovim runtime.
+
+local function prettier()
+  return {
+    exe = 'prettier',
+    args = {
+      vim.fn.shellescape(vim.api.nvim_buf_get_name(0)),
+      "--single-quote",
+      "--print-width ",
+      vim.bo.textwidth,
+      "--tab-width",
+      4,
+      "--semi",
+      "--quote-props",
+      "consistent",
+      "trailing-comma",
+      "es5",
+      "--bracket-same-line",
+      "true",
+      "trailing-comma",
+      "es5",
+      "--bracket-same-line",
+      "true",
+    },
+    stdin = true,
+  }
+end
+
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
 
@@ -101,6 +131,41 @@ require('lazy').setup({
   },
 
   {
+    "mhartington/formatter.nvim",
+    event = "VeryLazy",
+    opts = function()
+      return {
+        filetype = {
+          javascript = {
+            prettier
+          }
+        },
+        typescript = {
+          prettier
+        },
+        svelte = {
+          require("formatter.filetypes.svelte").prettier
+        },
+        html = {
+          require("formatter.filetypes.html").htmlbeautifier
+        },
+        lua = {
+          require("formatter.filetypes.lua").stylua
+        },
+        cpp = {
+          require("formatter.filetypes.cpp").clangformat
+        },
+        c = {
+          require("formatter.filetypes.c").clangformat
+        },
+        ["*"] = {
+          require("formatter.filetypes.any").remove_trailing_whitespace
+        },
+      }
+    end,
+  },
+
+  {
     'VonHeikemen/lsp-zero.nvim',
     branch = 'v3.x',
     lazy = true,
@@ -122,13 +187,15 @@ require('lazy').setup({
     },
   },
 
+  'andweeb/presence.nvim',
+
   {
-      'saecki/crates.nvim',
-      tag = 'v0.4.0',
-      dependencies = { 'nvim-lua/plenary.nvim' },
-      config = function()
-          require('crates').setup()
-      end,
+    'saecki/crates.nvim',
+    tag = 'v0.4.0',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    config = function()
+      require('crates').setup()
+    end,
   },
 
   -- Useful plugin to show you pending keybinds.
@@ -282,6 +349,9 @@ vim.o.completeopt = 'menuone,noselect'
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
+vim.opt.scrolloff = 10
+vim.opt.incsearch = true
+
 -- [[ Basic Keymaps ]]
 
 -- Keymaps for better default experience
@@ -431,7 +501,7 @@ local on_attach = function(_, bufnr)
     vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
   end
 
-  nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
+  nmap('<leader>r', vim.lsp.buf.rename, '[R]e[n]ame')
   nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
 
   nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
@@ -456,6 +526,11 @@ local on_attach = function(_, bufnr)
   -- Create a command `:Format` local to the LSP buffer
   vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
     vim.lsp.buf.format()
+  end, { desc = 'Format current buffer with LSP' })
+
+  vim.api.nvim_buf_create_user_command(bufnr, 'FormatWrite', function(_)
+    vim.lsp.buf.format()
+    vim.cmd("write")
   end, { desc = 'Format current buffer with LSP' })
 end
 
@@ -484,23 +559,54 @@ require('mason-lspconfig').setup()
 --  If you want to override the default filetypes that your language server will attach to you can
 --  define the property 'filetypes' to the map in question.
 local servers = {
-  -- clangd = {},
+  clangd = {},
   -- gopls = {},
-  -- pyright = {},
+  pyright = {},
   -- rust_analyzer = {},
-  -- tsserver = {},
-  -- html = { filetypes = { 'html', 'twig', 'hbs'} },
-
+  tsserver = {},
+  html = { filetypes = { 'html', 'twig', 'hbs' } },
+  svelte = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
       telemetry = { enable = false },
     },
   },
+  prismals = {},
 }
+
+vim.api.nvim_create_augroup("__formatter__", { clear = true })
+vim.api.nvim_create_autocmd("BufWritePost", {
+  group = "__formatter__",
+  command = ":FormatWrite",
+})
 
 -- Setup neovim lua configuration
 require('neodev').setup()
+
+require("presence").setup({
+  -- General options
+  auto_update         = true,                       -- Update activity based on autocmd events (if `false`, map or manually execute `:lua package.loaded.presence:update()`)
+  neovim_image_text   = "The One True Text Editor", -- Text displayed when hovered over the Neovim image
+  main_image          = "neovim",                   -- Main image display (either "neovim" or "file")
+  client_id           = "793271441293967371",       -- Use your own Discord application client id (not recommended)
+  log_level           = nil,                        -- Log messages at or above this level (one of the following: "debug", "info", "warn", "error")
+  debounce_timeout    = 10,                         -- Number of seconds to debounce events (or calls to `:lua package.loaded.presence:update(<filename>, true)`)
+  enable_line_number  = false,                      -- Displays the current line number instead of the current project
+  blacklist           = {},                         -- A list of strings or Lua patterns that disable Rich Presence if the current file name, path, or workspace matches
+  buttons             = true,                       -- Configure Rich Presence button(s), either a boolean to enable/disable, a static table (`{{ label = "<label>", url = "<url>" }, ...}`, or a function(buffer: string, repo_url: string|nil): table)
+  file_assets         = {},                         -- Custom file asset definitions keyed by file names and extensions (see default config at `lua/presence/file_assets.lua` for reference)
+  show_time           = true,                       -- Show the timer
+
+  -- Rich Presence text options
+  editing_text        = "Editing %s",         -- Format string rendered when an editable file is loaded in the buffer (either string or function(filename: string): string)
+  file_explorer_text  = "Browsing %s",        -- Format string rendered when browsing a file explorer (either string or function(file_explorer_name: string): string)
+  git_commit_text     = "Committing changes", -- Format string rendered when committing changes in git (either string or function(filename: string): string)
+  plugin_manager_text = "Managing plugins",   -- Format string rendered when managing plugins (either string or function(plugin_manager_name: string): string)
+  reading_text        = "Reading %s",         -- Format string rendered when a read-only or unmodifiable file is loaded in the buffer (either string or function(filename: string): string)
+  workspace_text      = "Working on %s",      -- Format string rendered when in a git repository (either string or function(project_name: string|nil, filename: string): string)
+  line_number_text    = "Line %s out of %s",  -- Format string rendered when `enable_line_number` is set to true (either string or function(line_number: number, line_count: number): string)
+})
 
 -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
 local capabilities = vim.lsp.protocol.make_client_capabilities()
@@ -529,8 +635,8 @@ local rt = require("rust-tools")
 rt.setup({
   server = {
     on_attach = function(_, bufnr)
-      vim.keymap.set("n", "<leader>ca", require("rust-tools.code_action_group").code_action_group, { buffer = bufnr})
-      vim.keymap.set("n", "<leader>ha", require("rust-tools.hover_actions").hover_actions, { buffer = bufnr})
+      vim.keymap.set("n", "<leader>ca", require("rust-tools.code_action_group").code_action_group, { buffer = bufnr })
+      vim.keymap.set("n", "<leader>ha", require("rust-tools.hover_actions").hover_actions, { buffer = bufnr })
     end,
   },
 })
