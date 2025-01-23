@@ -42,6 +42,13 @@ P.S. You can delete this when you're done too. It's your config now :)
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
+vim.opt.tabstop = 4
+vim.opt.shiftwidth = 4
+vim.opt.expandtab = true
+vim.opt.softtabstop = 4
 
 -- Fix shell not working on windows.
 if vim.fn.has("win32") == 1 then
@@ -74,31 +81,6 @@ vim.opt.rtp:prepend(lazypath)
 --  You can also configure plugins after the setup call,
 --    as they will be available in your neovim runtime.
 
-local function prettier()
-  return {
-    exe = 'prettier',
-    args = {
-      vim.fn.shellescape(vim.api.nvim_buf_get_name(0)),
-      "--single-quote",
-      "--print-width ",
-      vim.bo.textwidth,
-      "--tab-width",
-      4,
-      "--semi",
-      "--quote-props",
-      "consistent",
-      "trailing-comma",
-      "es5",
-      "--bracket-same-line",
-      "true",
-      "trailing-comma",
-      "es5",
-      "--bracket-same-line",
-      "true",
-    },
-    stdin = true,
-  }
-end
 
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
@@ -137,40 +119,64 @@ require('lazy').setup({
       return {
         filetype = {
           javascript = {
-            prettier
-          }
-        },
-        typescript = {
-          prettier
-        },
-        svelte = {
-          require("formatter.filetypes.svelte").prettier
-        },
-        html = {
-          require("formatter.filetypes.html").htmlbeautifier
-        },
-        lua = {
-          require("formatter.filetypes.lua").stylua
-        },
-        cpp = {
-          require("formatter.filetypes.cpp").clangformat
-        },
-        c = {
-          require("formatter.filetypes.c").clangformat
-        },
-        ["*"] = {
-          require("formatter.filetypes.any").remove_trailing_whitespace
-        },
+            require("formatter.filetypes.svelte").prettier
+          },
+          typescript = {
+            require("formatter.filetypes.svelte").prettier
+          },
+          svelte = {
+            require("formatter.filetypes.svelte").prettier
+          },
+          html = {
+            require("formatter.filetypes.html").htmlbeautifier
+          },
+          lua = {
+            require("formatter.filetypes.lua").stylua
+          },
+          cpp = {
+            function()
+              return {
+                exe = "clang-format",
+                args = { "-style=file" }, -- This tells clang-format to use the .clang-format file
+                stdin = true
+              }
+            end
+          },
+          cpp = {
+            function()
+              return {
+                exe = "clang-format",
+                args = { "-style=file" }, -- This tells clang-format to use the .clang-format file
+                stdin = true
+              }
+            end
+          },
+          ["*"] = {
+            require("formatter.filetypes.any").remove_trailing_whitespace
+          },
+        }
       }
     end,
   },
-
+  {
+    'windwp/nvim-autopairs',
+    event = "InsertEnter",
+    config = true
+    -- use opts = {} for passing setup options
+    -- this is equalent to setup({}) function
+  },
   {
     'VonHeikemen/lsp-zero.nvim',
     branch = 'v3.x',
     lazy = true,
   },
-
+  {
+    "nvim-tree/nvim-tree.lua",
+    lazy = false,
+    dependencies = {
+      "nvim-tree/nvim-web-devicons",
+    },
+  },
   {
     -- Autocompletion
     'hrsh7th/nvim-cmp',
@@ -199,7 +205,7 @@ require('lazy').setup({
   },
 
   -- Useful plugin to show you pending keybinds.
-  { 'folke/which-key.nvim', opts = {} },
+  { 'folke/which-key.nvim',  opts = {} },
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
@@ -243,11 +249,26 @@ require('lazy').setup({
     -- Theme inspired by Atom
     'navarasu/onedark.nvim',
     priority = 1000,
-    config = function()
-      vim.cmd.colorscheme 'onedark'
-    end,
   },
-
+  {
+    "catppuccin/nvim",
+    name = "catppuccin",
+    priority = 1000
+  },
+  {
+    "folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    opts = {},
+  },
+  {
+    "scottmckendry/cyberdream.nvim",
+    lazy = false,
+    priority = 1000,
+    opts = {
+      transparent = true,
+    },
+  },
   {
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
@@ -255,7 +276,7 @@ require('lazy').setup({
     opts = {
       options = {
         icons_enabled = false,
-        theme = 'onedark',
+        theme = 'auto',
         component_separators = '|',
         section_separators = '',
       },
@@ -358,6 +379,7 @@ vim.opt.incsearch = true
 -- See `:help vim.keymap.set()`
 vim.keymap.set({ 'n', 'v' }, '<Space>', '<Nop>', { silent = true })
 
+
 -- Remap for dealing with word wrap
 vim.keymap.set('n', 'k', "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true })
 vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true })
@@ -408,6 +430,7 @@ vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { de
 vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
 vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
 vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
+vim.keymap.set("n", "<leader>st", require("telescope.builtin").colorscheme, { desc = '[S]earch [T]hemes' })
 
 -- [[ Configure Treesitter ]]
 -- See `:help nvim-treesitter`
@@ -484,15 +507,8 @@ vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnos
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
--- [[ Configure LSP ]]
 --  This function gets run when an LSP connects to a particular buffer.
 local on_attach = function(_, bufnr)
-  -- NOTE: Remember that lua is a real programming language, and as such it is possible
-  -- to define small helper and utility functions so you don't have to repeat yourself
-  -- many times.
-  --
-  -- In this case, we create a function that lets us more easily define mappings specific
-  -- for LSP related items. It sets the mode, buffer and description for us each time.
   local nmap = function(keys, func, desc)
     if desc then
       desc = 'LSP: ' .. desc
@@ -532,7 +548,37 @@ local on_attach = function(_, bufnr)
     vim.lsp.buf.format()
     vim.cmd("write")
   end, { desc = 'Format current buffer with LSP' })
+  -- [[ Configure LSP ]]
+  -- nvim-tree option_def
+  local api = require("nvim-tree.api")
+
+  vim.keymap.set({ "i", "n" }, "<C-a>", function(bufnr)
+    local is_focused = require("nvim-tree.utils").is_nvim_tree_buf(bufnr)
+    local is_open = api.tree.is_visible();
+
+    if is_open and not is_focused then
+      api.tree.open()
+    else
+      api.tree.toggle()
+    end
+  end)
 end
+
+-- pass to setup along with your other options
+require("nvim-tree").setup({
+  sort = {
+    sorter = "case_sensitive",
+  },
+  view = {
+    width = 30,
+  },
+  renderer = {
+    group_empty = true,
+  },
+  filters = {
+    dotfiles = true,
+  },
+})
 
 -- document existing key chains
 require('which-key').register {
@@ -558,14 +604,43 @@ require('mason-lspconfig').setup()
 --
 --  If you want to override the default filetypes that your language server will attach to you can
 --  define the property 'filetypes' to the map in question.
+
+-- lspconfig is so fucking trash
+function root_pattern()
+  local current_dir = vim.fn.getcwd() -- Get the current working directory
+
+  while current_dir do
+    local file_path = current_dir .. '/tsconfig.json'
+    if vim.fn.filereadable(file_path) == 1 then
+      return file_path -- Return the full path if the file is found
+    end
+
+    -- Move to the parent directory
+    local parent_dir = current_dir:match("(.*/)")
+    if parent_dir then
+      current_dir = parent_dir:sub(1, -2) -- Remove the trailing slash
+    else
+      break                               -- Stop if there's no parent directory
+    end
+  end
+
+  return nil
+end
+
 local servers = {
-  clangd = {},
+  clangd = {
+    cmd = { "clangd", "--enable-config", "--log=verbose" },
+    --    root_dir = util.root_pattern(".clangd", ".git"),
+  },
   -- gopls = {},
   pyright = {},
   -- rust_analyzer = {},
-  tsserver = {},
+  tsserver = {
+    root_dir = root_pattern()
+  },
   html = { filetypes = { 'html', 'twig', 'hbs' } },
   svelte = {},
+  ["tailwindcss"] = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -637,6 +712,39 @@ rt.setup({
     on_attach = function(_, bufnr)
       vim.keymap.set("n", "<leader>ca", require("rust-tools.code_action_group").code_action_group, { buffer = bufnr })
       vim.keymap.set("n", "<leader>ha", require("rust-tools.hover_actions").hover_actions, { buffer = bufnr })
+      local nmap = function(keys, func, desc)
+        if desc then
+          desc = 'LSP: ' .. desc
+        end
+
+        vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
+      end
+
+      nmap('<leader>r', vim.lsp.buf.rename, '[R]e[n]ame')
+
+      -- Create a command `:Format` local to the LSP buffer
+      vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
+        vim.lsp.buf.format()
+      end, { desc = 'Format current buffer with LSP' })
+
+      vim.api.nvim_buf_create_user_command(bufnr, 'FormatWrite', function(_)
+        vim.lsp.buf.format()
+        vim.cmd("write")
+      end, { desc = 'Format current buffer with LSP' })
+      -- [[ Configure LSP ]]
+      -- nvim-tree option_def
+      local api = require("nvim-tree.api")
+
+      vim.keymap.set({ "i", "n" }, "<C-a>", function(bufnr)
+        local is_focused = require("nvim-tree.utils").is_nvim_tree_buf(bufnr)
+        local is_open = api.tree.is_visible();
+
+        if is_open and not is_focused then
+          api.tree.open()
+        else
+          api.tree.toggle()
+        end
+      end)
     end,
   },
 })
@@ -691,3 +799,37 @@ cmp.setup {
     { name = 'luasnip' },
   },
 }
+
+local colorscheme_path = vim.fn.stdpath 'data' .. "/colorscheme"
+
+local function save_colorscheme()
+  local colorscheme = vim.g.colors_name
+  if colorscheme then
+    local file = io.open(vim.fn.expand(colorscheme_path), 'w')
+    if file then
+      file:write(colorscheme)
+      file:close()
+    end
+  end
+end
+
+local function load_colorscheme()
+  local file = io.open(vim.fn.expand(colorscheme_path), 'r')
+  if file then
+    local colorscheme = file:read('*all')
+    file:close()
+    if colorscheme and colorscheme ~= '' then
+      vim.cmd('colorscheme ' .. colorscheme)
+    end
+  end
+end
+
+vim.api.nvim_create_autocmd('VimLeavePre', {
+  pattern = '*',
+  callback = save_colorscheme,
+})
+
+vim.api.nvim_create_autocmd('VimEnter', {
+  pattern = '*',
+  callback = load_colorscheme,
+})
